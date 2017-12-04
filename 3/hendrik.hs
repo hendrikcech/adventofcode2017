@@ -9,14 +9,19 @@ nextDir U = L
 nextDir L = D
 nextDir D = R
 
+-- step count increases on every left and right turn
+doesTurnIncStepsPerSide :: Dir -> Bool
+doesTurnIncStepsPerSide L = True
+doesTurnIncStepsPerSide R = True
+doesTurnIncStepsPerSide _ = False
+
 type Pos = (Int, Int)
 
 data State = MkState { square :: Int
                      , pos :: Pos
                      , facing :: Dir
                      , stepsUntilTurn :: Int
-                     , stepsPerSide :: Int
-                     , turnsToStepInc :: Int
+                     , totalSteps :: Int
                      }
   deriving Show
 
@@ -25,8 +30,7 @@ startState = MkState { square = 1
                    , pos = (0,0)
                    , facing = R
                    , stepsUntilTurn = 1
-                   , stepsPerSide = 1
-                   , turnsToStepInc = 2
+                   , totalSteps = 1
                    }
 
 move :: State -> State
@@ -42,27 +46,21 @@ move state = state { square = (square state) + 1
     newPos D = first (+ 1)
 
 turn :: State -> State
-turn state = state { facing = nextDir $ facing state
-                   , turnsToStepInc = (turnsToStepInc state) - 1
-                   }
-
-updateStepState :: State -> State
-updateStepState state =
-  state
-  { stepsUntilTurn = newStepsUntilTurn $ turnsToStepInc state
-  , stepsPerSide = newStepsUntilTurn $ turnsToStepInc state
-  , turnsToStepInc = newTurnsToStepInc $ turnsToStepInc state
-  }
-  where
-    newStepsUntilTurn 0 = (stepsPerSide state) + 1
-    newStepsUntilTurn n = stepsPerSide state
-    newTurnsToStepInc 0 = 2
-    newTurnsToStepInc n = n
+turn state =
+  let
+    facing' = nextDir $ facing state
+    steps = totalSteps state
+    stepsOnThisSide = if doesTurnIncStepsPerSide facing' then steps + 1 else steps
+  in
+    state { facing = facing'
+          , stepsUntilTurn = stepsOnThisSide
+          , totalSteps = stepsOnThisSide
+          }
 
 step :: State -> State
 step state
     | (stepsUntilTurn state > 0) = move state
-    | (stepsUntilTurn state == 0) = move . updateStepState . turn $ state
+    | (stepsUntilTurn state == 0) = move . turn $ state
 
 -- calculate manhatten distance
 distance :: Pos -> Pos -> Int
